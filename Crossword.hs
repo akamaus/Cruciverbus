@@ -1,11 +1,17 @@
 module Crossword
 where
 
+import Data.List(concatMap,delete,elemIndices,(\\))
+import Data.Maybe
+
 data Word = Word { letters :: String,
                    pos :: Point,
-                   dir :: Direction}
+                   dir :: Direction} deriving (Show,Eq)
 
-data Direction = Hor | Ver
+tail_pos :: Word -> Point
+tail_pos (Word l p d) = moveAlong d (length l - 1) p
+
+data Direction = Hor | Ver deriving (Show,Eq)
 rotate :: Direction -> Direction
 rotate Hor = Ver
 rotate Ver = Hor
@@ -22,7 +28,7 @@ addWord :: Crossword -> String -> [Crossword]
 addWord cr str =
     let vars = concatMap (linkWords str) cr :: [Word]
         proper_vars = filter (isProper cr) vars
-    in map (:cr) vars
+    in map (:cr) proper_vars
 
 linkWords :: String -> Word -> [Word]
 linkWords new_word w@(Word word place direction) = map constructWord crossings
@@ -38,10 +44,53 @@ moveAlong Ver dist (x,y) = (x, y+dist)
 moveAlongAndAcross :: Direction -> (Int,Int) -> Point -> Point
 moveAlongAndAcross dir (al,ac) p = (moveAlong (rotate dir) ac . moveAlong dir al) p
 
-isProper _ _ = True
+isProper :: Crossword -> Word -> Bool
+isProper cr w =
+    let new_word_box = getBox w :: Box
+        close = filter (boxesCrossing new_word_box . getArea) cr :: [Word]
+        crossing = filter (boxesCrossing new_word_box . getBox) close :: [Word]
+        adjacent = close \\ crossing :: [Word]
+        dir_w = dir w
+        testAjacent aw
+            | dir_w /= dir aw = False
+            | otherwise =
+                let h = pos w
+                    t = tail_pos w
+                    ah = pos aw
+                    at = tail_pos aw
+                    aj_points = if ajacent h at then Just (h,at)
+                                else if ajacent t ah then Just (t,ah)
+                                     else Nothing
+                in case aj_points of
+                                  Nothing -> False
+                                  (Just ps) -> or $ map (isSubbox ps . getBox) crossing
+        ajacent :: Point -> Point -> Bool
+        ajacent p1 p2 = p2 == moveAlong (rotate dir_w) 1 p1 ||
+                        p2 == moveAlong (rotate dir_w) (-1) p1
+    in (and $ map (isProperCrossing w) crossing) &&
+       (and $ map testAjacent adjacent)
+
+
+
+isProperCrossing :: Word -> Word -> Bool
+isProperCrossing (Word l1 (px1,py1) d1) (Word l2 (px2,py2) d2) =
+    case (d1,d2)
+    of (Hor,Hor) -> False
+       (Ver,Ver) -> False
+       (Hor,_)   -> let p = (px2-px1,py1-py2) in checkP p
+       otherwise -> let p = (py2-py1,px1-px2) in checkP p
+    where checkP (n1,n2) = if length l1 > n1 && length l2 > n2 && l1 !! n1 == l2 !! n2 then True
+                           else False
+
 
 findCrossings :: String -> String -> [(Int,Int)]
-findCrossings _ _ = [(0,0)]
+findCrossings xs ys = findCrossings' xs 0
+    where findCrossings' :: String -> Int -> [(Int,Int)]
+          findCrossings' (x:xs) i =
+              let cross_ixs = elemIndices x ys
+                  cross_points = map (\j -> (i,j)) cross_ixs
+              in cross_points ++ findCrossings' xs (i+1)
+          findCrossings' _ _ = []
 
 getArea :: Word -> Box
 getArea (Word w p d) =
@@ -61,9 +110,33 @@ getBoundingBox :: [Box] -> Box
 getBoundingBox = foldl1 (\((xm,ym),(xM,yM)) ((x1,y1),(x2,y2)) ->
                              ((min xm x1, min ym y1), (max xM x2, max yM y2)))
 
+isSubbox :: Box -> Box -> Bool
+isSubbox ((xs1,ys1),(xs2,ys2)) ((xL1,yL1),(xL2,yL2)) =
+    xL1 <= xs1 && xs2 <= xL2 &&
+    yL1 <= ys1 && ys2 <= yL2
+
+boxesCrossing :: Box -> Box -> Bool
+boxesCrossing ((x1,y1),(x2,y2))
+                     ((u1,v1),(u2,v2))
+    | x2 < u1 || u2 < x1 ||
+      y2 < v1 || v2 < y1 = False
+    | otherwise = True
+
 makeCrossword :: [String] -> Crossword
-makeCrossword strs = []
+makeCrossword strs =
+    let fst_gen = forkCrossword ([], strs)
+    in []
 
 seedCrossword :: String -> Crossword
 seedCrossword str = [Word str (0,0) Hor]
+
+forkCrossword :: (Crossword,[String]) -> [(Crossword,[String])]
+forkCrossword ([],candidates) = map seedCandidate candidates
+    where seedCandidate :: String -> (Crossword,[String])
+          seedCandidate w = (seedCrossword w, delete w candidates)
+forkCrossword (cr,candidates) = concatMap addCandidate candidates
+    where addCandidate :: String -> [(Crossword,[String])]
+          addCandidate w =
+              let crosswords = addWord cr w
+              in zip crosswords $ repeat $ delete w candidates
 
