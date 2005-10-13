@@ -1,17 +1,19 @@
 module Crossword
 where
 
-import Data.List(concatMap,delete,elemIndices,(\\))
+import Data.List(concatMap,delete,elemIndices,(\\),sort, nub)
 import Data.Maybe
+import Data.Set(toList,fromList)
+
 
 data Word = Word { letters :: String,
                    pos :: Point,
-                   dir :: Direction} deriving (Show,Eq)
+                   dir :: Direction} deriving (Show,Eq,Ord)
 
 tail_pos :: Word -> Point
 tail_pos (Word l p d) = moveAlong d (length l - 1) p
 
-data Direction = Hor | Ver deriving (Show,Eq)
+data Direction = Hor | Ver deriving (Show,Eq,Ord)
 rotate :: Direction -> Direction
 rotate Hor = Ver
 rotate Ver = Hor
@@ -122,10 +124,24 @@ boxesCrossing ((x1,y1),(x2,y2))
       y2 < v1 || v2 < y1 = False
     | otherwise = True
 
-makeCrossword :: [String] -> Crossword
+depth = 10
+
+makeCrossword :: [String] -> [(Crossword,[String])]
 makeCrossword strs =
-    let fst_gen = forkCrossword ([], strs)
-    in []
+    let init_st =  ([], sort strs) :: (Crossword,[String])
+    in genCrosswords [init_st] depth
+
+
+genCrosswords :: [(Crossword,[String])] -> Int -> [(Crossword,[String])]
+genCrosswords st 0 = st
+genCrosswords st n =
+    let sts = st >>= forkCrossword
+    in genCrosswords (nub sts) (n-1)
+
+
+--uniq_crosswords = toList $ fromList $ crosswords
+
+
 
 seedCrossword :: String -> Crossword
 seedCrossword str = [Word str (0,0) Hor]
@@ -138,5 +154,22 @@ forkCrossword (cr,candidates) = concatMap addCandidate candidates
     where addCandidate :: String -> [(Crossword,[String])]
           addCandidate w =
               let crosswords = addWord cr w
-              in zip crosswords $ repeat $ delete w candidates
+                  norm_crosswords = map normalize crosswords
+              in zip norm_crosswords $ repeat $ delete w candidates
+
+
+
+
+normalize:: Crossword -> Crossword
+normalize cr =
+    let ((bx,by),_) = getBoundingBox $ map getBox cr
+        moveWord (Word w (px,py) d)  (x,y) = Word w (px+x, py+y) d
+        abs_cr = map (moveWord `flip` (-bx, -by)) cr :: Crossword
+        s_cr = sort abs_cr :: Crossword
+        n_cr = max s_cr  (reflect s_cr) :: Crossword
+    in n_cr
+
+reflect :: Crossword -> Crossword
+reflect cr = map reflectWord cr
+    where reflectWord (Word w (x,y) dir) = Word w (y,x) (rotate dir)
 
