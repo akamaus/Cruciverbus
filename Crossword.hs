@@ -24,6 +24,8 @@ type Box = (Point,Point)
 
 type Crossword = [Word]
 
+type WordList = [String]
+
 
 
 addWord :: Crossword -> String -> [Crossword]
@@ -124,38 +126,33 @@ boxesCrossing ((x1,y1),(x2,y2))
       y2 < v1 || v2 < y1 = False
     | otherwise = True
 
-depth = 10
-
-makeCrossword :: [String] -> [(Crossword,[String])]
-makeCrossword strs =
-    let init_st =  ([], sort strs) :: (Crossword,[String])
-    in genCrosswords [init_st] depth
-
-
-genCrosswords :: [(Crossword,[String])] -> Int -> [(Crossword,[String])]
-genCrosswords st 0 = st
-genCrosswords st n =
-    let sts = st >>= forkCrossword
-    in genCrosswords (nub sts) (n-1)
-
+depth = 5
 
 --uniq_crosswords = toList $ fromList $ crosswords
 
+makeCrossword :: WordList -> [Crossword]
+makeCrossword words =
+    genCrosswords [init_st] depth
+    where init_st =  [] :: Crossword
+          genCrosswords :: [Crossword] -> Int -> [Crossword]
+          genCrosswords st 0 = st
+          genCrosswords st n =
+              let sts = st >>= forkCrossword
+              in genCrosswords (nub sts) (n-1)
+          forkCrossword :: Crossword -> [Crossword]
+          forkCrossword [] = map seedCrossword words
+          forkCrossword cr = concatMap addCandidate candidates
+              where addCandidate :: String -> [Crossword]
+                    addCandidate w =
+                        let crosswords = addWord cr w
+                            norm_crosswords = map normalize crosswords
+                        in norm_crosswords
+                    candidates = words \\ map letters cr
 
 
 seedCrossword :: String -> Crossword
 seedCrossword str = [Word str (0,0) Hor]
 
-forkCrossword :: (Crossword,[String]) -> [(Crossword,[String])]
-forkCrossword ([],candidates) = map seedCandidate candidates
-    where seedCandidate :: String -> (Crossword,[String])
-          seedCandidate w = (seedCrossword w, delete w candidates)
-forkCrossword (cr,candidates) = concatMap addCandidate candidates
-    where addCandidate :: String -> [(Crossword,[String])]
-          addCandidate w =
-              let crosswords = addWord cr w
-                  norm_crosswords = map normalize crosswords
-              in zip norm_crosswords $ repeat $ delete w candidates
 
 
 
