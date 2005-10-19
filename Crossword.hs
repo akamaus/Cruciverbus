@@ -1,7 +1,7 @@
 module Crossword
 where
 
-import Data.List(concatMap,delete,elemIndices,(\\),sort, nub,foldl')
+import Data.List(concatMap,delete,elemIndices,(\\),sort, nub,foldl',maximumBy)
 import Data.Maybe
 import Data.Set(toList,fromList)
 
@@ -126,28 +126,43 @@ boxesCrossing ((x1,y1),(x2,y2))
       y2 < v1 || v2 < y1 = False
     | otherwise = True
 
-depth = 4
+depth = 3
 
 --uniq_crosswords = toList $ fromList $ crosswords
 
-makeCrossword :: WordList -> [Crossword]
-makeCrossword words =
-    genCrosswords [init_st] depth
+makeCrossword :: WordList -> Crossword
+makeCrossword voc =
+    produceCrosswords init_st
     where init_st =  [] :: Crossword
+          voc_size = length voc
+          produceCrosswords :: Crossword -> Crossword
+          produceCrosswords cr =
+              let cr_size = length cr :: Int
+                  diff = voc_size - cr_size :: Int
+                  vars = genCrosswords [cr] 1 :: [Crossword]
+                  cur_depth = min (diff-1) depth :: Int
+                  evalFork :: Crossword -> Int
+                  evalFork c = maximum $ map evaluateCrossword $ genCrosswords [c] cur_depth
+                  best_var = fst $ maximumBy (\a b -> compare (snd a) (snd b))
+                             $ zip vars (map evalFork vars) :: Crossword
+              in case diff
+                 of 0 -> cr
+                    1 -> head $ snd $ getBest' vars (0,[])
+                    otherwise -> produceCrosswords best_var
           genCrosswords :: [Crossword] -> Int -> [Crossword]
           genCrosswords st 0 = st
           genCrosswords st n =
               let sts = st >>= forkCrossword
               in genCrosswords (nub sts) (n-1)
           forkCrossword :: Crossword -> [Crossword]
-          forkCrossword [] = map seedCrossword words
+          forkCrossword [] = map seedCrossword voc
           forkCrossword cr = concatMap addCandidate candidates
               where addCandidate :: String -> [Crossword]
                     addCandidate w =
                         let crosswords = addWord cr w
                             norm_crosswords = map normalize crosswords
                         in norm_crosswords
-                    candidates = words \\ map letters cr
+                    candidates = voc \\ map letters cr
 
 
 seedCrossword :: String -> Crossword
