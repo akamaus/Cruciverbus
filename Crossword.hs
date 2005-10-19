@@ -1,7 +1,7 @@
 module Crossword
 where
 
-import Data.List(concatMap,delete,elemIndices,(\\),sort, nub)
+import Data.List(concatMap,delete,elemIndices,(\\),sort, nub,foldl')
 import Data.Maybe
 import Data.Set(toList,fromList)
 
@@ -126,7 +126,7 @@ boxesCrossing ((x1,y1),(x2,y2))
       y2 < v1 || v2 < y1 = False
     | otherwise = True
 
-depth = 5
+depth = 4
 
 --uniq_crosswords = toList $ fromList $ crosswords
 
@@ -170,3 +170,31 @@ reflect :: Crossword -> Crossword
 reflect cr = map reflectWord cr
     where reflectWord (Word w (x,y) dir) = Word w (y,x) (rotate dir)
 
+
+evaluateCrossword :: Crossword -> Int
+evaluateCrossword cr =
+    let boxes = map getBox cr :: [Box]
+        crossings = map (fromEnum . uncurry boxesCrossing) $ makePairs boxes :: [Int]
+    in foldl' (+) 0 crossings
+
+
+makePairs :: [a] -> [(a,a)]
+makePairs (x:xs) = map (\t -> (x,t)) xs ++ makePairs xs
+makePairs [] = []
+
+{-
+getBest :: WordList -> [Crossword]
+getBest lst =
+    let crs = makeCrossword lst
+    in snd $ getBest' crs (0,[])
+-}
+
+getBest' :: [Crossword] -> (Int, [Crossword]) -> (Int, [Crossword])
+getBest' (cr:crs) best@(best_eval, best_crs) =
+    let cur = evaluateCrossword cr
+    in  case compare cur best_eval
+        of LT -> getBest' crs best
+           EQ -> getBest' crs (best_eval, cr:best_crs)
+           GT -> getBest' crs (cur, [cr])
+
+getBest' [] best = best
