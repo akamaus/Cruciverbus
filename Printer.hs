@@ -1,34 +1,31 @@
-module Printer (crosswordToString, printCrossword)
+module Printer (crosswordToString, printCrossword) where
 
-where
+import Pole
+import Word
+import Crossword(Crossword)
 
-import Crossword (Crossword,Word(Word),Box,Point,getArea,getBoundingBox,moveAlong)
 import Data.Array
 
 getCrosswordArea :: Crossword -> Box
-getCrosswordArea cr = getBoundingBox $ map getArea cr
+getCrosswordArea = getBoundingBox . map getArea
 
 getCrosswordArray :: Crossword -> Array Point Char
 getCrosswordArray cr =
-    let blank = listArray (getCrosswordArea cr) (repeat ' ')
+    let blank = listArray (unbox $ getCrosswordArea cr) (repeat ' ')
         letters = concatMap renderWord cr :: [(Point,Char)]
     in blank // letters
 
 renderWord :: Word -> [(Point,Char)]
-renderWord (Word (l:ls) pos dir) =
-    ( (pos, l) :
-      renderWord (Word ls (moveAlong dir 1 pos) dir)
-    )
-renderWord _ = []
-
+renderWord (Word wl pos dir) = zip (iterate (moveAlong dir 1) pos) (un_wl wl)
 
 crosswordToString :: Crossword -> String
 crosswordToString cr =
-    let ((x1,y1),(x2,y2)) = getCrosswordArea cr
+    let b = getCrosswordArea cr
+        (p1,p2) = (unbox_p1 b, unbox_p2 b)
         array = getCrosswordArray cr :: Array Point Char
-        rowIxs r = range ((x1,r),(x2,r)) :: [Point]
+        rowIxs r = range (p1{p_y = r},p2{p_y = r}) :: [Point]
         row r = map (array !) $ rowIxs r :: String
-        rows = map row [y1..y2] :: [String]
+        rows = map row [p_y p1 .. p_y p2] :: [String]
     in concatMap (\s -> s ++ ['\n']) rows
 
 printCrossword :: Crossword -> IO ()
