@@ -34,24 +34,26 @@ isProper cr w =
         crossing = filter (boxesCrossing new_word_box . getBox) close :: [Word]
         adjacent = close \\ crossing :: [Word]
         dir_w = dir w
-        testAjacent aw
-            | dir_w /= dir aw = False
-            | otherwise =
-                let h = pos w
-                    t = tail_pos w
-                    ah = pos aw
-                    at = tail_pos aw
-                    aj_points = if ajacent h at then Just $ mkBox h at
-                                else if ajacent t ah then Just $ mkBox t ah
-                                     else Nothing
-                in case aj_points of
-                                  Nothing -> False
-                                  (Just ps) -> or $ map (isSubbox ps . getBox) crossing
-        ajacent :: Point -> Point -> Bool
-        ajacent p1 p2 = p2 == moveAlong (rotate dir_w) 1 p1 ||
-                        p2 == moveAlong (rotate dir_w) (-1) p1
-    in (and $ map (isProperCrossing w) crossing) &&
-       (and $ map testAjacent adjacent)
+    in (and . map (isProperCrossing w) $ crossing) &&
+       (and . map (isProperNeighs crossing w) $ adjacent)
+
+isProperNeighs :: [Word] -> Word -> Word -> Bool
+isProperNeighs crossing w1 w2
+    | dir w1 /= dir w2 = let w1a = getArea w1
+                             c = intersect w1a (getBox w2)
+                         in c `elem` (map mkAtomBox . corners $ w1a)
+    | otherwise =
+        let h1 = pos w1
+            t1 = tail_pos w1
+            h2 = pos w2
+            t2 = tail_pos w2
+            aj = ajacent (rotate $ dir w1)
+            aj_points = if aj h1 t2 then Just $ mkBox h1 t2
+                         else if aj t1 h2 then Just $ mkBox t1 h2
+                               else Nothing
+        in case aj_points of
+             Nothing -> False
+             (Just ps) -> or $ map (isSubbox ps . getBox) crossing
 
 isProperCrossing :: Word -> Word -> Bool
 isProperCrossing (Word l1 p1 d1) (Word l2 p2 d2) =
