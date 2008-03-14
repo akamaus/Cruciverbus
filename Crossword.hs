@@ -4,6 +4,9 @@ where
 import Data.List(concatMap,delete,elemIndices,(\\),sort, nub,foldl',maximumBy)
 import Data.Maybe
 import Data.Set(toList,fromList)
+import Control.Monad.Reader
+import Control.Monad.Writer
+import Control.Monad.List
 
 import Pole
 import Word
@@ -78,7 +81,50 @@ depth = 3
 
 --uniq_crosswords = toList $ fromList $ crosswords
 
-makeCrossword :: WordList -> Crossword
+--data Enumerator a  = Enumerator (ReaderT [String] ( ListT (Writer [Crossword] ) a ) )
+
+type Enumerator a = ReaderT [String] (ListT (Writer [Crossword]) ) a
+{-
+instance Monad Enumerator where
+    return = Enumerator . return
+    m >>= f = Enumerator $ unEnumerator m >>= f
+
+instance MonadPlus Enumerator where
+    mzero = return ()
+    mplus ma mb = do a <- ma
+                     b <- mb
+                     return $ a ++ b
+-}
+
+runEnumerator :: Enumerator a -> [String] -> [Crossword]
+runEnumerator e = snd . runWriter . runListT . runReaderT e
+
+putCrossword :: Crossword -> Enumerator ()
+putCrossword c = lift $ lift $ tell [c]
+
+getWords = ask >>= mlist
+usingWord w = local (delete w)
+
+enumerateCrosswords = do
+  w <- getWords
+  let seed = seedCrossword w
+  usingWord w $ enumerateCrosswords' seed
+
+enumerateCrosswords' c = do
+  putCrossword c
+  w <- getWords
+  let crs = map normalize . addWord c $ w
+  usingWord w $ mapM_ enumerateCrosswords' crs
+
+
+mlist :: MonadPlus m => [a] -> m a
+mlist = msum . map return
+
+
+
+--enumerateCrosswords :: WordList -> [Crossword]
+
+
 makeCrossword voc =
     produceCrosswords init_st
     where init_st =  [] :: Crossword
@@ -93,10 +139,12 @@ makeCrossword voc =
                   evalFork c = maximum $ map evaluateCrossword $ genCrosswords [c] cur_depth
                   best_var = fst $ maximumBy (\a b -> compare (snd a) (snd b))
                              $ zip vars (map evalFork vars) :: Crossword
-              in case diff
+                  gg = genCrosswords [[]] voc_size
+              in maximumBy (\c1 c2 -> compare (evaluateCrossword c1) (evaluateCrossword c2)) gg
+{-case diff
                  of 0 -> cr
                     1 -> head $ snd $ getBest' vars (0,[])
-                    otherwise -> produceCrosswords best_var
+                    otherwise -> produceCrosswords best_var -}
           genCrosswords :: [Crossword] -> Int -> [Crossword]
           genCrosswords st 0 = st
           genCrosswords st n =
@@ -129,23 +177,6 @@ normalize cr =
 reflect :: Crossword -> Crossword
 reflect cr = map reflectWord cr
 
-evaluateCrossword :: Crossword -> Int
-evaluateCrossword cr =
-    let boxes = map getBox cr :: [Box]
-        crossings = map (fromEnum . uncurry boxesCrossing) $ makePairs boxes :: [Int]
-    in foldl' (+) 0 crossings
-
-
-makePairs :: [a] -> [(a,a)]
-makePairs (x:xs) = map (\t -> (x,t)) xs ++ makePairs xs
-makePairs [] = []
-
-{-
-getBest :: WordList -> [Crossword]
-getBest lst =
-    let crs = makeCrossword lst
-    in snd $ getBest' crs (0,[])
--}
 
 getBest' :: [Crossword] -> (Int, [Crossword]) -> (Int, [Crossword])
 getBest' (cr:crs) best@(best_eval, best_crs) =
@@ -156,3 +187,15 @@ getBest' (cr:crs) best@(best_eval, best_crs) =
            GT -> getBest' crs (cur, [cr])
 
 getBest' [] best = best
+
+
+
+evaluateCrossword :: Crossword -> Int
+evaluateCrossword cr =
+    let boxes = map getBox cr :: [Box]
+        crossings = map (fromEnum . uncurry boxesCrossing) $ makePairs boxes :: [Int]
+    in foldl' (+) 0 crossings
+
+makePairs :: [a] -> [(a,a)]
+makePairs (x:xs) = map (\t -> (x,t)) xs ++ makePairs xs
+makePairs [] = []
