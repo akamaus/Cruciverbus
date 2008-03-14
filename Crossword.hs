@@ -5,15 +5,20 @@ import Data.List(concatMap,delete,elemIndices,(\\),sort, nub,foldl',maximumBy)
 import Data.Maybe
 import Data.Set(toList,fromList)
 
+import Data.Tree
+
 import Pole
 import Word
 
 
 type Crossword = [Word]
 
+emptyCrossword = []
+
 type WordList = [String]
 
 addWord :: Crossword -> String -> [Crossword]
+addWord [] str = [seedCrossword str]
 addWord cr str =
     let vars = concatMap (linkWord str) cr :: [Word]
         proper_vars = filter (isProper cr) vars
@@ -77,6 +82,11 @@ findCrossings xs ys = findCrossings' xs 0
 depth = 3
 
 --uniq_crosswords = toList $ fromList $ crosswords
+
+buildCrosswordTree :: [String] -> Tree Crossword
+buildCrosswordTree words = unfoldTree (\(c, ws) ->
+                                             let res = concatMap (\w -> zip (map normalize $ addWord c w) (repeat $ w `delete` ws) )  ws
+                                             in (c,res)) (emptyCrossword,words)
 
 makeCrossword :: WordList -> Crossword
 makeCrossword voc =
