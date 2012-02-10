@@ -6,9 +6,10 @@ import Data.Maybe
 import Data.Set(toList,fromList)
 
 import Data.Tree
-
 import Control.Monad.State
 import qualified Data.Set as S
+
+import Control.Monad.Reader
 
 import Pole
 import Word
@@ -98,6 +99,24 @@ buildCrosswordTree words =
         put $ {-# SCC "put" #-} S.union old (S.fromList . map fst $ new_res)
         return (c,new_res))
       (emptyCrossword,words)
+
+
+buildCrosswords words = genCrosswords [emptyCrossword] (length words)
+    where
+      genCrosswords :: [Crossword] -> Int -> [Crossword]
+      genCrosswords st 0 = st
+      genCrosswords st n =
+          let sts = S.unions . map forkCrossword $ st
+          in genCrosswords (S.toList sts) (n-1)
+
+      forkCrossword :: Crossword -> S.Set Crossword
+      forkCrossword cr =
+          let candidates = {-# SCC "diff" #-} words \\ map (un_wl . letters) cr
+              addCandidate :: String -> [Crossword]
+              addCandidate w = addWord cr $ w
+          in fromList $ concatMap (map normalize . addCandidate) candidates
+
+
 
 makeCrossword :: WordList -> Crossword
 makeCrossword voc =
