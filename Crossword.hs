@@ -7,6 +7,9 @@ import Data.Set(toList,fromList)
 
 import Data.Tree
 
+import Control.Monad.State
+import qualified Data.Set as S
+
 import Pole
 import Word
 
@@ -83,10 +86,18 @@ depth = 3
 
 --uniq_crosswords = toList $ fromList $ crosswords
 
-buildCrosswordTree :: [String] -> Tree Crossword
-buildCrosswordTree words = unfoldTree (\(c, ws) ->
-                                             let res = concatMap (\w -> zip (map normalize $ addWord c w) (repeat $ w `delete` ws) )  ws
-                                             in (c,res)) (emptyCrossword,words)
+type Builder = State (S.Set Crossword)
+
+runBuilder words = tail $ flatten $ evalState (buildCrosswordTree words) S.empty
+buildCrosswordTree :: [String] -> Builder (Tree Crossword)
+buildCrosswordTree words =
+    unfoldTreeM (\(c, ws) -> do
+        let res = {-# SCC "res" #-} concatMap (\w -> zip (map normalize $ addWord c w) (repeat $ w `delete` ws) )  ws
+        old <- {-# SCC "get" #-} get
+        let new_res = {-# SCC "new_res" #-} filter (\(c,_) -> S.notMember c old) res
+        put $ {-# SCC "put" #-} S.union old (S.fromList . map fst $ new_res)
+        return (c,new_res))
+      (emptyCrossword,words)
 
 makeCrossword :: WordList -> Crossword
 makeCrossword voc =

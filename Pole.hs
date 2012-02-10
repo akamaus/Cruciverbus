@@ -6,9 +6,9 @@ module Pole(Point(..), Box, mkBox, mkAtomBox, unbox_p1, unbox_p2, unbox,
 
 import Data.Array
 
-data Point = Point {p_x::Int,p_y::Int} deriving (Eq, Ord,Show, Ix)
+data Point = Point {p_x:: !Int,p_y:: !Int} deriving (Eq, Ord,Show, Ix)
 
-data Box = Box Point Point deriving (Show,Eq)
+data Box = Box !Point !Point deriving (Show,Eq)
 unbox_p1 (Box p _) = p
 unbox_p2 (Box _ p) = p
 
