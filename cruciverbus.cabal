@@ -1,0 +1,16 @@
+Name:           Cruciverbus
+Version:        0.1
+Cabal-Version:  >= 1.2
+License:        GPL
+Author:         Dmitry V'yal<akamaus@gmail.com>
+maintainer:     Dmitry V'yal<akamaus@gmail.com>
+Synopsis:       Crossword builder
+Build-Type:     Simple
+
+--data-files:     nocrib.glade, nocrib.ico
+
+Executable cruciverbus
+  Build-Depends:  mtl>=2, containers, base>=3, array>=0.3
+  Main-Is:        Main.hs
+  Hs-Source-Dirs: src
+  ghc-options:    -W -O2
