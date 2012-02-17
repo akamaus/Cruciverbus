@@ -10,7 +10,8 @@ Build-Type:     Simple
 --data-files:     nocrib.glade, nocrib.ico
 
 Executable cruciverbus
-  Build-Depends:  mtl>=2, containers, base>=3, array>=0.3
-  Main-Is:        Main.hs
+  Build-Depends:  mtl>=2, containers, base>=3, array>=0.3,
+                  yesod>=0.10
+  Main-Is:        Web.hs
   Hs-Source-Dirs: src
   ghc-options:    -W -O2
