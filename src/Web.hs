@@ -1,7 +1,10 @@
-{-# LANGUAGE TypeFamilies, QuasiQuotes, MultiParamTypeClasses, TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies, QuasiQuotes, MultiParamTypeClasses, TemplateHaskell, OverloadedStrings, FlexibleContexts #-}
 import Yesod
---import Data.Text(Text)
+import qualified Data.Text as T
+import Data.Text(Text)
+
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad
 
 data Cruciverbus = Cruciverbus
 
@@ -18,27 +21,29 @@ instance RenderMessage Cruciverbus FormMessage where
 
 -- Form
 
+data WordList = WordList {unWL :: [String]}
+
 data GenTask = GenTask {
-  gtWords :: Text, --[String],
+  gtWords :: [String],
   gtNumResults :: Int
 }
 
 --textListField :: (Integral i, RenderMessage master FormMessage) => Field sub master i
 
-{-
+blank :: (Monad m, RenderMessage master FormMessage)
+      => (Text -> Either FormMessage a) -> [Text] -> m (Either (SomeMessage master) (Maybe a))
+blank _ [] = return $ Right Nothing
+blank _ ("":_) = return $ Right Nothing
+blank f (x:_) = return $ either (Left . SomeMessage) (Right . Just) $ f x
+
 textListField = Field
-    { fieldParse = blank $ Right
+    { fieldParse = blank $ Right . map T.unpack . T.words
     , fieldView = \theId name theClass val isReq -> addHamlet
-        [WHAMLET|
- <textarea id="#{theId}" name="#{name}" :not (null theClass):class="#{T.intercalate " " theClass}" type="text" :isReq:required=""> #{either id id val}
+        [hamlet|\
+<textarea id="#{theId}" name="#{name}" :not (null theClass):class="#{T.intercalate " " theClass}" type="text" :isReq:required=""> #{either id show_val val}
 |]
 }
--}
-
-textListField = Field {
-  fieldParse = liftM unTextarea . 
-                
-
+ where show_val = T.pack . unwords
 
 gtAForm = GenTask
   <$> areq textListField "List of words" Nothing
