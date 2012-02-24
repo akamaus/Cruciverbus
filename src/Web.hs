@@ -56,6 +56,8 @@ gtForm = renderTable gtAForm
 
 getHomeR  = defaultLayout [whamlet|<a href=@{ComposeR}>Compose a crossword|]
 
+-- Form page
+
 getComposeR = do
   ((_, widget), enctype) <- generateFormPost gtForm
   defaultLayout [whamlet|
@@ -65,17 +67,30 @@ getComposeR = do
    <input type=submit value='Generate'>
 |]
 
+-- Results page
+
+crosswords_css = [lucius|
+div.crossword-container { float: left; }
+.crossword { border-collapse: collapse;
+  td { width: 16px; height: 16px; text-align: center; vertical-align: middle; }
+  td.letter { border: 1px solid #222; }
+}
+div.controls { clear:both; }
+|]
+
+crosswords_snippet crosswords = [whamlet|
+<p> Generated crosswords:
+  $forall c <- crosswords
+    <div .crossword-container> #{c}
+<div.controls> <a href=@{ComposeR}> Compose another
+|]
+
 postGenerateR = do
   ((result, widget), enctype) <- runFormPost gtForm
   case result of
     FormSuccess gt -> let crosswords = buildCrosswords (gtWords gt)
-                      in defaultLayout [whamlet|
-<p> Generated crosswords:
-$forall c <- crosswords
-  <div> #{c}
-<div> <a href=@{ComposeR}> Compose another
-|]
+                      in defaultLayout $ do toWidget crosswords_css
+                                            crosswords_snippet crosswords
     _ -> defaultLayout [whamlet| Invalid input |]
 
 main = warpDebug 3000 Cruciverbus
-

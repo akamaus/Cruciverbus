@@ -6,16 +6,19 @@ import Text.Blaze.Renderer.Utf8 (renderHtml)
 import Text.Blaze(ToHtml)
 import Text.Hamlet(shamlet)
 
+import Data.Char(isSpace)
 import Crossword
 import Printer
 
-
 crosswordToHtml cr = [shamlet|
-<table>
+<table .crossword>
   $forall row <- rows
     <tr>
       $forall c <- row
-        <td>#{c}
+        $if isSpace c
+          <td>#{c}
+        $else
+          <td .letter>#{c}
 |]
  where rows = lines . crosswordToString $ cr
 
