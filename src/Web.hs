@@ -6,6 +6,9 @@ import Data.Text(Text)
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad
 
+import Crossword
+import WebPrinter
+
 data Cruciverbus = Cruciverbus
 
 mkYesod "Cruciverbus" [parseRoutes|
@@ -27,8 +30,6 @@ data GenTask = GenTask {
   gtWords :: [String],
   gtNumResults :: Int
 }
-
---textListField :: (Integral i, RenderMessage master FormMessage) => Field sub master i
 
 blank :: (Monad m, RenderMessage master FormMessage)
       => (Text -> Either FormMessage a) -> [Text] -> m (Either (SomeMessage master) (Maybe a))
@@ -67,12 +68,14 @@ getComposeR = do
 postGenerateR = do
   ((result, widget), enctype) <- runFormPost gtForm
   case result of
-    FormSuccess gt -> defaultLayout [whamlet|
-<p> Form results:
-$forall w <- gtWords gt
-  <div> #{w}
+    FormSuccess gt -> let crosswords = buildCrosswords (gtWords gt)
+                      in defaultLayout [whamlet|
+<p> Generated crosswords:
+$forall c <- crosswords
+  <div> #{c}
 <div> <a href=@{ComposeR}> Compose another
 |]
     _ -> defaultLayout [whamlet| Invalid input |]
 
 main = warpDebug 3000 Cruciverbus
+

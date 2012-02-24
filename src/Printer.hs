@@ -1,4 +1,4 @@
-module Printer (crosswordToString, printCrossword) where
+module Printer (crosswordToString, getCrosswordArray, printCrossword) where
 
 import Pole
 import Word
