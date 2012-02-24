@@ -1,4 +1,4 @@
-module Word(WordLetters, mk_wl, un_wl, wl_length,
+module Word(WordLetters(..), mk_wl, un_wl, wl_length,
             Word(..),
             getArea, getBox, tail_pos,
             moveWord, reflectWord) where
